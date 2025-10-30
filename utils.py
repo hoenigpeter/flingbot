@@ -145,14 +145,15 @@ def setup_envs(dataset, num_processes=16, **kwargs):
     task_loader = ray.remote(TaskLoader).remote(
         hdf5_path=kwargs['tasks'],
         repeat=not kwargs['eval'])
-
+    
     envs = [ray.remote(SimEnv).options(
-        num_gpus=torch.cuda.device_count()/num_processes,
+        num_gpus=1,
         num_cpus=0.1).remote(
         replay_buffer_path=dataset,
         get_task_fn=lambda: ray.get(task_loader.get_next_task.remote()),
         **kwargs)
         for _ in range(num_processes)]
+    
     ray.get([e.setup_ray.remote(e) for e in envs])
     return envs, task_loader
 

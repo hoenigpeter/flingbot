@@ -779,30 +779,68 @@ class SimEnv:
         else:
             raise Exception()
 
+    # def on_episode_end(self, log=False):
+    #     if self.dump_visualizations and len(self.episode_memory) > 0:
+    #         while True:
+    #             hashstring = hashlib.sha1()
+    #             hashstring.update(str(time()).encode('utf-8'))
+    #             vis_dir = self.log_dir + '/' + hashstring.hexdigest()[:10]
+    #             if not os.path.exists(vis_dir):
+    #                 break
+    #         os.mkdir(vis_dir)
+    #         for key, frames in self.env_video_frames.items():
+    #             if len(frames) == 0:
+    #                 continue
+    #             path = f'{vis_dir}/{key}.mp4'
+    #             with imageio.get_writer(path, mode='I', fps=24) as writer:
+    #                 for frame in (
+    #                     frames if not log
+    #                         else tqdm(frames, desc=f'Dumping {key} frames')):
+    #                     writer.append_data(frame)
+    #         self.episode_memory.add_value(
+    #             key='visualization_dir',
+    #             value=vis_dir)
+    #     self.env_video_frames.clear()
+    #     self.episode_memory.dump(
+    #         self.replay_buffer_path)
+    #     del self.episode_memory
+    #     self.episode_memory = Memory()
+
+    import cv2
     def on_episode_end(self, log=False):
         if self.dump_visualizations and len(self.episode_memory) > 0:
             while True:
                 hashstring = hashlib.sha1()
                 hashstring.update(str(time()).encode('utf-8'))
-                vis_dir = self.log_dir + '/' + hashstring.hexdigest()[:10]
+                vis_dir = os.path.join(self.log_dir, hashstring.hexdigest()[:10])
                 if not os.path.exists(vis_dir):
                     break
             os.mkdir(vis_dir)
+
             for key, frames in self.env_video_frames.items():
                 if len(frames) == 0:
                     continue
-                path = f'{vis_dir}/{key}.mp4'
-                with imageio.get_writer(path, mode='I', fps=24) as writer:
-                    for frame in (
-                        frames if not log
-                            else tqdm(frames, desc=f'Dumping {key} frames')):
-                        writer.append_data(frame)
+
+                path = os.path.join(vis_dir, f'{key}.mp4')
+                height, width, _ = frames[0].shape
+
+                # Define the codec and create VideoWriter object
+                fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # or use 'XVID'
+                out = cv2.VideoWriter(path, fourcc, 24, (width, height))
+
+                for frame in (frames if not log else tqdm(frames, desc=f'Dumping {key} frames')):
+                    # Convert from RGB to BGR (OpenCV uses BGR)
+                    bgr_frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                    out.write(bgr_frame)
+
+                out.release()
+
             self.episode_memory.add_value(
                 key='visualization_dir',
                 value=vis_dir)
+
         self.env_video_frames.clear()
-        self.episode_memory.dump(
-            self.replay_buffer_path)
+        self.episode_memory.dump(self.replay_buffer_path)
         del self.episode_memory
         self.episode_memory = Memory()
 
